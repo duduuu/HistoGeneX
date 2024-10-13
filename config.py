@@ -1,0 +1,11 @@
+model_name = 'swinv2_s'
+exp_name = 'base'
+batch_size = 32
+img_size = 224
+epochs = 50
+early_stop_count = 30
+gene_size = 3467
+scheduler = 'ReduceLROnPlateau'
+min_lr = 1e-6
+learning_rate = 3e-4
+seed = 42
