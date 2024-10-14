@@ -1,8 +1,9 @@
 model_name = 'swinv2_s'
-exp_name = 'base'
+augment = True
+loss_function = "pearson"
 batch_size = 32
 img_size = 224
-epochs = 50
+epochs = 100
 early_stop_count = 30
 gene_size = 3467
 scheduler = 'ReduceLROnPlateau'

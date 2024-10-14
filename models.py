@@ -4,16 +4,31 @@ import torch.nn.functional as F
 import torchvision.models as models
 import timm
 
-import config as CFG
-    
-class SwinV2_s(nn.Module):
-    def __init__(self):
-        super(SwinV2_s, self).__init__()
+class BaseModel(nn.Module):
+    def __init__(self, model_name, out_features=3467):
+        super(BaseModel, self).__init__()
         
-        self.model = models.swin_v2_s(pretrained=True)
-        self.model.head = nn.Identity()
+        if model_name == "swinv2_s":
+            self.model = models.swin_v2_s(pretrained=True)
+            self.model.head = nn.Identity()
+            in_features = 768
+        elif model_name == "swinv2_t":
+            self.model = models.swin_v2_t(pretrained=True)
+            self.model.head = nn.Identity()
+            in_features = 768
+        elif model_name == 'convnext_s':
+            self.model = models.convnext_small(pretrained=True)
+            self.model.classifier[2] = nn.Identity()
+            in_features = 768
+        elif model_name == 'eva02_s':
+            self.model = timm.create_model("eva02_small_patch14_224.mim_in22k", pretrained=True)
+            self.model.head = nn.Identity()
+            in_features = 384
+        else:
+            raise ValueError(f"Unknown model name: {model_name}.")
+            
         self.dropouts = nn.ModuleList([nn.Dropout(0.5) for _ in range(5)])
-        self.linear = nn.Linear(768, CFG.gene_size)
+        self.linear = nn.Linear(in_features, out_features)
         
     def forward(self, x):
         x = self.model(x)
@@ -22,41 +37,24 @@ class SwinV2_s(nn.Module):
         
         return x
     
-class SwinV2_t(nn.Module):
-    def __init__(self):
-        super(SwinV2_s, self).__init__()
-        
-        self.model = models.swin_v2_t(pretrained=True)
-        self.model.head = nn.Identity()
-        self.dropouts = nn.ModuleList([nn.Dropout(0.5) for _ in range(5)])
-        self.linear = nn.Linear(768, CFG.gene_size)
-        
-    def forward(self, x):
-        x = self.model(x)
-        x = torch.mean(torch.stack([dropout(x) for dropout in self.dropouts]), dim=0)
-        x = self.linear(x)
-        
-        return x
-    
-class Bleep_SwinV2_s(nn.Module):
-    def __init__(self):
+class BleepModel(nn.Module):
+    def __init__(self, model_name, out_features=3467):
         super().__init__()
-        self.image_encoder = models.swin_v2_s(pretrained=True)
-        self.image_projection = ProjectionHead(embedding_dim=768)
-        self.spot_projection = ProjectionHead(embedding_dim=CFG.gene_size)
         
-    def cross_entropy(preds, targets, reduction='none'):
-        log_softmax = nn.LogSoftmax(dim = -1)
-        loss = (-targets * log_softmax(preds)).sum(1)
-        if reduction == "none":
-            return loss
-        elif reduction == "mean":
-            return loss.mean()
-
-    def forward(self, batch):
+        if model_name == "swinv2_s":
+            self.image_encoder = models.swin_v2_s(pretrained=True)
+            self.image_encoder.head = nn.Identity()
+            in_features = 768
+        else:
+            raise ValueError(f"Unknown model name: {model_name}.")
+            
+        self.image_projection = ProjectionHead(embedding_dim=in_features)
+        self.spot_projection = ProjectionHead(embedding_dim=out_features)
+        
+    def forward(self, imgs, labels):
         # Getting Image and spot Features
-        image_features = self.image_encoder(batch["image"])
-        spot_features = batch["reduced_expression"]
+        image_features = self.image_encoder(imgs)
+        spot_features = labels
         
         # Getting Image and Spot Embeddings (with same dimension) 
         image_embeddings = self.image_projection(image_features)
@@ -67,8 +65,8 @@ class Bleep_SwinV2_s(nn.Module):
         images_similarity = image_embeddings @ image_embeddings.T
         spots_similarity = spot_embeddings @ spot_embeddings.T
         targets = F.softmax((images_similarity + spots_similarity) / 2, dim=-1)   
-        spots_loss = self.cross_entropy(logits, targets, reduction='none')
-        images_loss = self.cross_entropy(logits.T, targets.T, reduction='none')
+        spots_loss = cross_entropy(logits, targets)
+        images_loss = cross_entropy(logits.T, targets.T)
         loss =  (images_loss + spots_loss) / 2.0 # shape: (batch_size)
         return loss.mean()
     
@@ -89,3 +87,9 @@ class ProjectionHead(nn.Module):
         x = x + projected
         x = self.layer_norm(x)
         return x
+    
+def cross_entropy(preds, targets):
+    log_softmax = nn.LogSoftmax(dim = -1)
+    loss = (-targets * log_softmax(preds)).sum(1)
+    
+    return loss
