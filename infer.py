@@ -49,31 +49,6 @@ def inference(model, test_loader, device):
 
     return preds
 
-def inference_bleep(model, test_loader, device):
-    model.eval()
-    
-    test_image_embeddings = []
-    spot_embeddings = []
-    
-    with torch.no_grad():
-        for imgs in tqdm(test_loader):
-            imgs.to(device).float()
-            image_features = model.image_encoder(imgs)
-            image_embeddings = model.image_projection(image_features)
-            test_image_embeddings.append(image_embeddings)
-            
-            spot_embeddings.append(model.spot_projection(batch["reduced_expression"].cuda())) #??
-            
-            imgs = imgs.to(device).float()
-            pred = model(imgs)
-            
-            preds.append(pred.detach().cpu())
-    
-    preds = torch.cat(preds).numpy()
-
-    return preds
-
-
 test_dataset = MAIDataset(test_df['path'].values, None)
 test_loader = DataLoader(test_dataset, batch_size=CFG.batch_size, shuffle=False, num_workers=0)
 
@@ -81,13 +56,15 @@ preds = np.zeros((len(test_df), CFG.gene_size))
 
 NFOLD = 5
 
+wandb_name = "eva02_s_aug"
+
 for fold in range(NFOLD):
     print(f"Fold {fold+1}")
     
     model = BaseModel(CFG.model_name)
     model = model.to(device)
     
-    model_path = utils.get_model_path("models", CFG.model_name, CFG.exp_name, fold + 1)
+    model_path = utils.get_model_path("models", wandb_name, fold + 1)
     model.load_state_dict(torch.load(model_path))
     print(model_path)
     
@@ -95,4 +72,4 @@ for fold in range(NFOLD):
 
 submit = pd.read_csv('./data/sample_submission.csv')
 submit.iloc[:, 1:] = np.array(preds).astype(np.float32)
-submit.to_csv(f'./submission/{CFG.model_name}_{CFG.exp_name}.csv', index=False)
+submit.to_csv(f'./submission/{wandb_name}_ver2.csv', index=False)

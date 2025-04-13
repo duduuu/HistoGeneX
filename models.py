@@ -8,6 +8,7 @@ class BaseModel(nn.Module):
     def __init__(self, model_name, out_features=3467):
         super(BaseModel, self).__init__()
         
+        self.model_name = model_name
         if model_name == "swinv2_s":
             self.model = models.swin_v2_s(pretrained=True)
             self.model.head = nn.Identity()
@@ -20,18 +21,37 @@ class BaseModel(nn.Module):
             self.model = models.convnext_small(pretrained=True)
             self.model.classifier[2] = nn.Identity()
             in_features = 768
+        elif model_name == 'vit_b_16':
+            self.model = models.vit_b_16(pretrained=True)
+            self.model.heads = nn.Identity()
+            in_features = 768
         elif model_name == 'eva02_s':
             self.model = timm.create_model("eva02_small_patch14_224.mim_in22k", pretrained=True)
             self.model.head = nn.Identity()
             in_features = 384
+        elif model_name == 'deit3_s':
+            self.model = timm.create_model("deit3_small_patch16_224.fb_in1k", pretrained=True)
+            self.model.head = nn.Identity()
+            in_features = 384
+        elif model_name == 'edgenext_b':
+            self.model = timm.create_model("deit3_small_patch16_224.fb_in1k", pretrained=True)
+            self.model.head = nn.Identity()
+            in_features = 384
         else:
             raise ValueError(f"Unknown model name: {model_name}.")
-            
+                        
+        self.feature_extractor = nn.Sequential(
+            nn.Flatten(),
+            nn.Linear(in_features, 512),
+            nn.ReLU()
+        )
         self.dropouts = nn.ModuleList([nn.Dropout(0.5) for _ in range(5)])
-        self.linear = nn.Linear(in_features, out_features)
+        self.linear = nn.Linear(384, out_features)
         
     def forward(self, x):
         x = self.model(x)
+        #if self.model_name == 'eva02_s':
+        #    x = self.feature_extractor(x)
         x = torch.mean(torch.stack([dropout(x) for dropout in self.dropouts]), dim=0)
         x = self.linear(x)
         

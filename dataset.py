@@ -20,7 +20,7 @@ class MAIDataset(Dataset):
                                         A.Transpose(p=0.5),
                                         A.VerticalFlip(p=0.5),
                                         A.HorizontalFlip(p=0.5),
-                                        A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.1, p=0.75),
+                                        A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.1, p=0.5),
                                         A.OneOf(
                                             [
                                                 A.MotionBlur(blur_limit=5),
@@ -28,11 +28,11 @@ class MAIDataset(Dataset):
                                                 A.GaussianBlur(blur_limit=5),
                                                 A.GaussNoise(var_limit=(5.0, 30.0)),
                                             ],
-                                            p=0.7,
+                                            p=0.75,
                                         ),
-                                        A.CLAHE(clip_limit=4.0, p=0.7),
+                                        A.CLAHE(clip_limit=4.0, p=0.5),
                                         A.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=20, val_shift_limit=10, p=0.5),
-                                        A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=15, border_mode=0, p=0.85),
+                                        A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=15, border_mode=0, p=0.5),
                                         A.Resize(img_size, img_size),
                                         A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
                                         ToTensorV2()

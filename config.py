@@ -1,10 +1,9 @@
-model_name = 'swinv2_s'
-augment = True
-loss_function = "pearson"
+model_name = 'eva02_s'
+augment = False
 batch_size = 32
 img_size = 224
-epochs = 100
-early_stop_count = 30
+epochs = 50
+early_stop_count = 50
 gene_size = 3467
 scheduler = 'ReduceLROnPlateau'
 min_lr = 1e-6
